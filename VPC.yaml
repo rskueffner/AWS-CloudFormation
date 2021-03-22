@@ -67,7 +67,7 @@ Resources:
     - SecondaryCidrBlock
     - InternetGatewayAttachment
     Properties:
-      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml
+      TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml'
       Parameters:
         VpcName: !Ref Prefix
         VpcId: !Ref VPC
@@ -80,7 +80,7 @@ Resources:
     - SecondaryCidrBlock
     - InternetGatewayAttachment
     Properties:
-      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml
+      TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml'
       Parameters:
         VpcName: !Ref Prefix
         VpcId: !Ref VPC
@@ -136,7 +136,7 @@ Resources:
   Private1:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml
+      TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml'
       Parameters:
         VpcName: !Ref Prefix
         VpcId: !Ref VPC
@@ -147,7 +147,7 @@ Resources:
   Private2:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml
+      TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml'
       Parameters:
         VpcName: !Ref Prefix
         VpcId: !Ref VPC
