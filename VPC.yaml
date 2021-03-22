@@ -41,7 +41,7 @@ Resources:
 
   SecondaryCidrBlock:
     Type: AWS::EC2::VPCCidrBlock
-    Properties: 
+    Properties:
       CidrBlock: !Ref TransitCidrBlock
       VpcId: !Ref VPC
 
@@ -61,79 +61,48 @@ Resources:
 
 
 
-  TransitSubnet1:
-    Type: AWS::EC2::Subnet
-    DependsOn: SecondaryCidrBlock
+  Transit1:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+    - SecondaryCidrBlock
+    - InternetGatewayAttachment
     Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs '' ]
-      CidrBlock: !Select [ 0, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-transit-a'
+      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml
+      Parameters:
+        VpcName: !Ref Prefix
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 0, !GetAZs '' ]
+        CidrBlock: !Select [ 0, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
 
-  NatGateway1EIP:
-    Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment
+  Transit2:
+    Type: AWS::CloudFormation::Stack
+    DependsOn:
+    - SecondaryCidrBlock
+    - InternetGatewayAttachment
     Properties:
-      Domain: vpc
-
-  NatGateway1:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGateway1EIP.AllocationId
-      SubnetId: !Ref TransitSubnet1
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-nat-a'
-
-
-
-
-  TransitSubnet2:
-    Type: AWS::EC2::Subnet
-    DependsOn: SecondaryCidrBlock
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
-      CidrBlock: !Select [ 1, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-transit-b'
-
-  NatGateway2EIP:
-    Type: AWS::EC2::EIP
-    DependsOn: InternetGatewayAttachment
-    Properties:
-      Domain: vpc
-
-  NatGateway2:
-    Type: AWS::EC2::NatGateway
-    Properties:
-      AllocationId: !GetAtt NatGateway2EIP.AllocationId
-      SubnetId: !Ref TransitSubnet2
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-nat-b'
+      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml
+      Parameters:
+        VpcName: !Ref Prefix
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 1, !GetAZs '' ]
+        CidrBlock: !Select [ 1, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
 
 
 
 
   TransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
-    Properties: 
-      SubnetIds: 
-        - !Ref TransitSubnet1
-        - !Ref TransitSubnet2
+    Properties:
+      SubnetIds:
+        - !GetAtt [ Transit1, Outputs.Subnet ]
+        - !GetAtt [ Transit2, Outputs.Subnet ]
       TransitGatewayId: !Ref TransitGatewayId
       VpcId: !Ref VPC
       Tags:
         - Key: Name
           Value: !Sub '${Prefix}-tgwa'
 
-  TransitSubnetRouteTable:
+  TransitRouteTable:
     Type: AWS::EC2::RouteTable
     Properties:
       VpcId: !Ref VPC
@@ -145,120 +114,68 @@ Resources:
     Type: AWS::EC2::Route
     DependsOn: TransitGatewayAttachment
     Properties:
-      RouteTableId: !Ref TransitSubnetRouteTable
+      RouteTableId: !Ref TransitRouteTable
       DestinationCidrBlock: 0.0.0.0/0
       TransitGatewayId: !Ref TransitGatewayId
 
-  TransitSubnet1RouteTableAssociation:
+  Transit1SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref TransitSubnetRouteTable
-      SubnetId: !Ref TransitSubnet1
+      RouteTableId: !Ref TransitRouteTable
+      SubnetId: !GetAtt [ Transit1, Outputs.Subnet ]
 
-  TransitSubnet2RouteTableAssociation:
+  Transit2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
-      RouteTableId: !Ref TransitSubnetRouteTable
-      SubnetId: !Ref TransitSubnet2
+      RouteTableId: !Ref TransitRouteTable
+      SubnetId: !GetAtt [ Transit2, Outputs.Subnet ]
 
 
 
 
-  PrivateSubnet1:
-    Type: AWS::EC2::Subnet
+  Private1:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 0, !GetAZs  '' ]
-      CidrBlock: !Select [ 0, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-private-a'
+      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml
+      Parameters:
+        VpcName: !Ref Prefix
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 0, !GetAZs '' ]
+        CidrBlock: !Select [ 0, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
+        NatGateway: !GetAtt [ Transit1, Outputs.NatGateway ]
 
-  PrivateSubnet1RouteTable:
-    Type: AWS::EC2::RouteTable
+  Private2:
+    Type: AWS::CloudFormation::Stack
     Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-private-a-rtb'
-
-  NatGateway1Route:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateSubnet1RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway1
-
-  PrivateSubnet1RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateSubnet1RouteTable
-      SubnetId: !Ref PrivateSubnet1
-
-
-
-
-  PrivateSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      AvailabilityZone: !Select [ 1, !GetAZs  '' ]
-      CidrBlock: !Select [ 1, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
-      MapPublicIpOnLaunch: false
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-private-b'
-
-  PrivateSubnet2RouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub '${Prefix}-private-b-rtb'
-
-  NatGateway2Route:
-    Type: AWS::EC2::Route
-    Properties:
-      RouteTableId: !Ref PrivateSubnet2RouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      NatGatewayId: !Ref NatGateway2
-
-  PrivateSubnet2RouteTableAssociation:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      RouteTableId: !Ref PrivateSubnet2RouteTable
-      SubnetId: !Ref PrivateSubnet2
+      TemplateURL: https://462284595202-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml
+      Parameters:
+        VpcName: !Ref Prefix
+        VpcId: !Ref VPC
+        AvailabilityZone: !Select [ 1, !GetAZs '' ]
+        CidrBlock: !Select [ 1, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
+        NatGateway: !GetAtt [ Transit2, Outputs.NatGateway ]
 
 
 
 
 Outputs:
+
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
 
-  TransitSubnets:
-    Description: A list of the public subnets
-    Value: !Join [ ",", [ !Ref TransitSubnet1, !Ref TransitSubnet2 ]]
-
-  PrivateSubnets:
-    Description: A list of the private subnets
-    Value: !Join [ ",", [ !Ref PrivateSubnet1, !Ref PrivateSubnet2 ]]
-
   TransitSubnet1:
     Description: A reference to the transit subnet in the 1st Availability Zone
-    Value: !Ref TransitSubnet1
+    Value: !GetAtt [ Transit1, Outputs.Subnet ]
 
   TransitSubnet2:
     Description: A reference to the transit subnet in the 2nd Availability Zone
-    Value: !Ref TransitSubnet2
+    Value: !GetAtt [ Transit2, Outputs.Subnet ]
 
   PrivateSubnet1:
     Description: A reference to the private subnet in the 1st Availability Zone
-    Value: !Ref PrivateSubnet1
+    Value: !GetAtt [ Private1, Outputs.Subnet ]
 
   PrivateSubnet2:
     Description: A reference to the private subnet in the 2nd Availability Zone
-    Value: !Ref PrivateSubnet2
+    Value: !GetAtt [ Private2, Outputs.Subnet ]
