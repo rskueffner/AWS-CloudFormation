@@ -1,4 +1,6 @@
-Parameters:
+################################################################################################################################
+Parameters: ####################################################################################################################
+################################################################################################################################
 
   VpcName:
     Type: String
@@ -26,7 +28,9 @@ Parameters:
     Type: String
     Default: tgw-1234abcd1234abcd1
 
+################################################################################################################################
 Resources: #####################################################################################################################
+################################################################################################################################
 
   VPC:
     Type: AWS::EC2::VPC
@@ -152,24 +156,30 @@ Resources: #####################################################################
         CidrBlock: !Select [ 1, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
         NatGateway: !GetAtt [ TransitB, Outputs.NatGateway ]
 
+################################################################################################################################
 Outputs: #######################################################################################################################
+################################################################################################################################
 
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
 
+################################################################################################################################
+
   TransitA:
     Description: A reference to the transit subnet in the 1st Availability Zone
-    Value: !GetAtt [ TransitA, Outputs.Subnet ]
-
-  TransitB:
-    Description: A reference to the transit subnet in the 2nd Availability Zone
-    Value: !GetAtt [ TransitB, Outputs.Subnet ]
+    Value: !GetAtt TransitA.Outputs.Subnet
 
   PrivateA:
     Description: A reference to the private subnet in the 1st Availability Zone
-    Value: !GetAtt [ PrivateA, Outputs.Subnet ]
+    Value: !GetAtt PrivateA.Outputs.Subnet
+
+################################################################################################################################
+
+  TransitB:
+    Description: A reference to the transit subnet in the 2nd Availability Zone
+    Value: !GetAtt TransitB.Outputs.Subnet
 
   PrivateB:
     Description: A reference to the private subnet in the 2nd Availability Zone
-    Value: !GetAtt [ PrivateB, Outputs.Subnet ]
+    Value: !GetAtt PrivateB.Outputs.Subnet
