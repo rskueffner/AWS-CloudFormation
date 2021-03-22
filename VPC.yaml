@@ -1,6 +1,6 @@
 Parameters:
 
-  Prefix:
+  VpcName:
     Type: String
 
   PrivateCidrBlock:
@@ -26,7 +26,7 @@ Parameters:
     Type: String
     Default: tgw-1234abcd1234abcd1
 
-Resources:
+Resources: #####################################################################################################################
 
   VPC:
     Type: AWS::EC2::VPC
@@ -37,7 +37,7 @@ Resources:
       InstanceTenancy: default
       Tags:
         - Key: Name
-          Value: !Sub '${Prefix}-vpc'
+          Value: !Sub '${VpcName}-vpc'
 
   SecondaryCidrBlock:
     Type: AWS::EC2::VPCCidrBlock
@@ -50,7 +50,7 @@ Resources:
     Properties:
       Tags:
         - Key: Name
-          Value: !Sub '${Prefix}-igw'
+          Value: !Sub '${VpcName}-igw'
 
   InternetGatewayAttachment:
     Type: AWS::EC2::VPCGatewayAttachment
@@ -58,10 +58,9 @@ Resources:
       InternetGatewayId: !Ref InternetGateway
       VpcId: !Ref VPC
 
+################################################################################################################################
 
-
-
-  Transit1:
+  TransitA:
     Type: AWS::CloudFormation::Stack
     DependsOn:
     - SecondaryCidrBlock
@@ -69,12 +68,12 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml'
       Parameters:
-        VpcName: !Ref Prefix
         VpcId: !Ref VPC
+        SubnetName: !Sub '${VpcName}-transit-a'
         AvailabilityZone: !Select [ 0, !GetAZs '' ]
         CidrBlock: !Select [ 0, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
 
-  Transit2:
+  TransitB:
     Type: AWS::CloudFormation::Stack
     DependsOn:
     - SecondaryCidrBlock
@@ -82,25 +81,24 @@ Resources:
     Properties:
       TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/TransitSubnet.yaml'
       Parameters:
-        VpcName: !Ref Prefix
         VpcId: !Ref VPC
+        SubnetName: !Sub '${VpcName}-transit-b'
         AvailabilityZone: !Select [ 1, !GetAZs '' ]
         CidrBlock: !Select [ 1, !Cidr [ !Ref TransitCidrBlock, 2, 4 ] ]
 
-
-
+################################################################################################################################
 
   TransitGatewayAttachment:
     Type: AWS::EC2::TransitGatewayAttachment
     Properties:
       SubnetIds:
-        - !GetAtt [ Transit1, Outputs.Subnet ]
-        - !GetAtt [ Transit2, Outputs.Subnet ]
+        - !GetAtt [ TransitA, Outputs.Subnet ]
+        - !GetAtt [ TransitB, Outputs.Subnet ]
       TransitGatewayId: !Ref TransitGatewayId
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub '${Prefix}-tgwa'
+          Value: !Sub '${VpcName}-tgwa'
 
   TransitRouteTable:
     Type: AWS::EC2::RouteTable
@@ -108,7 +106,7 @@ Resources:
       VpcId: !Ref VPC
       Tags:
         - Key: Name
-          Value: !Sub '${Prefix}-transit-rtb'
+          Value: !Sub '${VpcName}-transit-rtb'
 
   TransitGatewayRoute:
     Type: AWS::EC2::Route
@@ -122,60 +120,56 @@ Resources:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref TransitRouteTable
-      SubnetId: !GetAtt [ Transit1, Outputs.Subnet ]
+      SubnetId: !GetAtt [ TransitA, Outputs.Subnet ]
 
   Transit2SubnetRouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
     Properties:
       RouteTableId: !Ref TransitRouteTable
-      SubnetId: !GetAtt [ Transit2, Outputs.Subnet ]
+      SubnetId: !GetAtt [ TransitB, Outputs.Subnet ]
 
+################################################################################################################################
 
-
-
-  Private1:
+  PrivateA:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml'
       Parameters:
-        VpcName: !Ref Prefix
         VpcId: !Ref VPC
+        SubnetName: !Sub '${VpcName}-private-a'
         AvailabilityZone: !Select [ 0, !GetAZs '' ]
         CidrBlock: !Select [ 0, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
-        NatGateway: !GetAtt [ Transit1, Outputs.NatGateway ]
+        NatGateway: !GetAtt [ TransitA, Outputs.NatGateway ]
 
-  Private2:
+  PrivateB:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub 'https://${AWS::AccountId}-cloudformation.s3.amazonaws.com/VPC/PrivateSubnet.yaml'
       Parameters:
-        VpcName: !Ref Prefix
         VpcId: !Ref VPC
+        SubnetName: !Sub '${VpcName}-private-b'
         AvailabilityZone: !Select [ 1, !GetAZs '' ]
         CidrBlock: !Select [ 1, !Cidr [ !Ref PrivateCidrBlock, 2, 8 ] ]
-        NatGateway: !GetAtt [ Transit2, Outputs.NatGateway ]
+        NatGateway: !GetAtt [ TransitB, Outputs.NatGateway ]
 
-
-
-
-Outputs:
+Outputs: #######################################################################################################################
 
   VPC:
     Description: A reference to the created VPC
     Value: !Ref VPC
 
-  TransitSubnet1:
+  TransitA:
     Description: A reference to the transit subnet in the 1st Availability Zone
-    Value: !GetAtt [ Transit1, Outputs.Subnet ]
+    Value: !GetAtt [ TransitA, Outputs.Subnet ]
 
-  TransitSubnet2:
+  TransitB:
     Description: A reference to the transit subnet in the 2nd Availability Zone
-    Value: !GetAtt [ Transit2, Outputs.Subnet ]
+    Value: !GetAtt [ TransitB, Outputs.Subnet ]
 
-  PrivateSubnet1:
+  PrivateA:
     Description: A reference to the private subnet in the 1st Availability Zone
-    Value: !GetAtt [ Private1, Outputs.Subnet ]
+    Value: !GetAtt [ PrivateA, Outputs.Subnet ]
 
-  PrivateSubnet2:
+  PrivateB:
     Description: A reference to the private subnet in the 2nd Availability Zone
-    Value: !GetAtt [ Private2, Outputs.Subnet ]
+    Value: !GetAtt [ PrivateB, Outputs.Subnet ]
