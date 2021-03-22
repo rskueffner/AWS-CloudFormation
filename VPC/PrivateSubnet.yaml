@@ -1,20 +1,27 @@
 Parameters:
-  VpcName:
-    Type: String
 
   VpcId:
     Type: AWS::EC2::VPC::Id
 
-  AvailabilityZone:
+  SubnetName:
     Type: String
+
+  AvailabilityZone:
+    Type: AWS::EC2::AvailabilityZone::Name
 
   CidrBlock:
     Type: String
+    AllowedPattern: "(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.\
+                     (25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.\
+                     (25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\.\
+                     (25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9]?[0-9])\\/\
+                     (1[6-9]|2[0-8])"
 
   NatGateway:
     Type: String
   
-Resources:
+Resources: #####################################################################################################################
+
   Subnet:
     Type: AWS::EC2::Subnet
     Properties:
@@ -24,7 +31,7 @@ Resources:
       MapPublicIpOnLaunch: false
       Tags:
         - Key: Name
-          Value: !Join [ '-', [ !Ref VpcName, 'private', !Select [ 2, !Split [ '-', !Ref AvailabilityZone ] ] ] ]
+          Value: !Ref SubnetName
 
   RouteTable:
     Type: AWS::EC2::RouteTable
@@ -32,7 +39,7 @@ Resources:
       VpcId: !Ref VpcId
       Tags:
         - Key: Name
-          Value: !Join [ '-', [ !Ref VpcName, 'private', !Select [ 2, !Split [ '-', !Ref AvailabilityZone ] ], 'rtb' ] ]
+          Value: !Sub '${SubnetName}-rtb'
 
   NatGatewayRoute:
     Type: AWS::EC2::Route
@@ -47,7 +54,8 @@ Resources:
       RouteTableId: !Ref RouteTable
       SubnetId: !Ref Subnet
 
-Outputs:
+Outputs: #######################################################################################################################
+
   Subnet:
     Value: !Ref Subnet
 
